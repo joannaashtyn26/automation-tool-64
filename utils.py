@@ -1,73 +1,69 @@
 import os
 import json
-from typing import Any, Dict, List, Optional
+from typing import List, Dict, Any, Callable
 
-def safe_file_read(path: str) -> Optional[str]:
-    if not path or not isinstance(path, str):
-        return None
-    try:
-        if not os.path.isfile(path):
-            return None
-        with open(path, 'r', encoding='utf-8') as file:
-            return file.read()
-    except (OSError, IOError, PermissionError, UnicodeDecodeError):
-        return None
+def read_text_file(path: str) -> str:
+    """Read text content from file.
+    Args:
+        path: file path to read.
+    Returns:
+        file content string.
+    """
+    with open(path, 'r', encoding='utf-8') as file:
+        return file.read()
 
-def safe_file_write(path: str, content: str) -> bool:
-    if not path or not isinstance(path, str) or not isinstance(content, str):
-        return False
-    try:
-        directory = os.path.dirname(path)
-        if directory:
-            os.makedirs(directory, exist_ok=True)
-        with open(path, 'w', encoding='utf-8') as file:
-            file.write(content)
-        return True
-    except (OSError, IOError, PermissionError):
-        return False
+def write_text_file(path: str, content: str) -> None:
+    """Write content to file.
+    Args:
+        path: file path to write.
+        content: text to write.
+    """
+    with open(path, 'w', encoding='utf-8') as file:
+        file.write(content)
 
-def safe_json_parse(text: str) -> Optional[Dict[str, Any]]:
-    if not text or not isinstance(text, str):
-        return None
-    try:
-        parsed = json.loads(text)
-        if isinstance(parsed, dict):
-            return parsed
-        return None
-    except (json.JSONDecodeError, TypeError, ValueError):
-        return None
+def list_files_with_extension(directory: str, extension: str) -> List[str]:
+    """List files matching extension.
+    Args:
+        directory: search directory.
+        extension: file extension.
+    Returns:
+        list of file paths.
+    """
+    files: List[str] = []
+    for root, _, filenames in os.walk(directory):
+        for filename in filenames:
+            if filename.endswith(extension):
+                files.append(os.path.join(root, filename))
+    return files
 
-def process_data_list(items: List[Any]) -> List[str]:
-    if not isinstance(items, list):
-        return []
-    result: List[str] = []
-    for item in items:
-        if item is None:
-            continue
-        try:
-            str_item = str(item).strip()
-            if str_item:
-                result.append(str_item)
-        except Exception:
-            continue
-    return result
+def load_config(config_path: str) -> Dict[str, Any]:
+    """Load config from JSON.
+    Args:
+        config_path: path to JSON.
+    Returns:
+        config dict.
+    """
+    with open(config_path, 'r', encoding='utf-8') as f:
+        return json.load(f)
 
-def handle_dict_edge_cases(data: Dict[str, Any]) -> Dict[str, Any]:
-    if not isinstance(data, dict):
-        return {}
-    output: Dict[str, Any] = {}
-    for key, value in data.items():
-        if key is None or not isinstance(key, str):
-            continue
-        try:
-            if value is None:
-                output[key] = None
-            elif isinstance(value, (int, float)):
-                output[key] = max(0, value)
-            elif isinstance(value, str):
-                output[key] = value.strip() or "empty"
-            else:
-                output[key] = value
-        except Exception:
-            output[key] = "invalid"
-    return output
+def merge_dicts(dict1: Dict[str, Any], dict2: Dict[str, Any]) -> Dict[str, Any]:
+    """Merge dicts with override.
+    Args:
+        dict1: first dict.
+        dict2: second dict.
+    Returns:
+        merged dict.
+    """
+    merged: Dict[str, Any] = dict1.copy()
+    merged.update(dict2)
+    return merged
+
+def apply_function_to_list(items: List[Any], func: Callable[[Any], Any]) -> List[Any]:
+    """Apply func to list items.
+    Args:
+        items: input items.
+        func: function to apply.
+    Returns:
+        list of results.
+    """
+    return [func(item) for item in items]
