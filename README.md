@@ -1,46 +1,43 @@
-# Automation Tool 64
+# automation-tool-64
 
-Automation Tool 64 is a versatile Python-based application designed to streamline repetitive tasks and enhance productivity. Whether you're looking to automate file management, data processing, or system monitoring, this tool provides a robust solution with an easy-to-use interface.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+automation-tool-64 is a Python-based command-line utility for automating repetitive system and file operations on 64-bit platforms. It lets users define reliable workflows through configuration files rather than writing one-off scripts.
 
 ## Features
-
-- **Multi-Task Scheduling**: Schedule and automate multiple tasks simultaneously with customizable intervals and conditions.
-- **File Management**: Automatically organize, move, or delete files based on rules you define, reducing clutter and saving time.
-- **Data Processing**: Process large datasets with minimal coding by using built-in functions for data manipulation and analysis.
-- **System Monitoring**: Keep track of system metrics and receive alerts based on user-defined thresholds to ensure optimal performance.
+- YAML-based task definitions with support for variables, conditions, and loops
+- Parallel execution with automatic dependency resolution between tasks
+- Built-in retry logic, logging, and performance timing for each step
+- Environment variable injection and secret handling from external sources
 
 ## Installation
-
-To install Automation Tool 64, you need Python 3.7 or later. You can install the tool directly from the command line using pip:
 
 ```bash
 git clone https://github.com/Developer/automation-tool-64.git
 cd automation-tool-64
-pip install -r requirements.txt
+pip install -e .
 ```
 
-## Basic Usage Example
+## Usage
 
-Here's a simple example to get started with Automation Tool 64. This snippet demonstrates how to set a scheduled task to back up a directory every day at 3:00 PM.
+Create a `workflow.yaml` file:
 
-```python
-from automation_tool import TaskScheduler
+```yaml
+name: daily-backup
+tasks:
+  - id: cleanup
+    command: find /tmp -type f -mtime +3 -delete
+  - id: backup
+    command: tar -czf /backups/data.tar.gz /data
+    depends_on: cleanup
+```
 
-# Define your task
-backup_task = TaskScheduler(target_directory='/path/to/source',
-                             backup_directory='/path/to/backup',
-                             schedule='0 15 * * *')  # Everyday at 3 PM
+Run the workflow:
 
-# Start the scheduler
-backup_task.start()
+```bash
+automation-tool-64 run workflow.yaml
 ```
 
 ## License
 
-![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
-
-Automation Tool 64 is licensed under the MIT License. See the [LICENSE](LICENSE) file for more information.
-
----
-
-Feel free to contribute or open issues on GitHub to enhance this tool further. Your input helps improve productivity for everyone!
+This project is licensed under the MIT License.
