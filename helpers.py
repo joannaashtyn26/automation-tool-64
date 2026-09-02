@@ -1,61 +1,55 @@
-import os
 import json
-import time
-from functools import wraps
-from typing import Any, Callable, Dict, List, Generator, Optional
 
-def load_json(path: str) -> Dict[str, Any]:
-    with open(path, 'r', encoding='utf-8') as f:
-        return json.load(f)
-
-def save_json(path: str, data: Dict[str, Any]) -> None:
-    with open(path, 'w', encoding='utf-8') as f:
-        json.dump(data, f, indent=2)
-
-def retry_decorator(max_attempts: int = 3, delay: float = 1.0) -> Callable[[Callable], Callable]:
-    def decorator(func: Callable) -> Callable:
-        @wraps(func)
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
-            last_exception = None
-            for attempt in range(max_attempts):
-                try:
-                    return func(*args, **kwargs)
-                except Exception as e:
-                    last_exception = e
-                    if attempt < max_attempts - 1:
-                        time.sleep(delay)
-            if last_exception:
-                raise last_exception
-            return None
-        return wrapper
-    return decorator
-
-def ensure_dir_exists(path: str) -> str:
-    os.makedirs(path, exist_ok=True)
-    return path
-
-def flatten_nested_dict(d: Dict[str, Any], parent_key: str = '', sep: str = '.') -> Dict[str, Any]:
-    items: List[tuple[str, Any]] = []
-    for k, v in d.items():
-        new_key = f"{parent_key}{sep}{k}" if parent_key else k
-        if isinstance(v, dict):
-            items.extend(flatten_nested_dict(v, new_key, sep).items())
-        else:
-            items.append((new_key, v))
-    return dict(items)
-
-def split_into_chunks(data: List[Any], chunk_size: int) -> Generator[List[Any], None, None]:
-    for i in range(0, len(data), chunk_size):
-        yield data[i:i + chunk_size]
-
-def get_env(key: str, default: Optional[Any] = None) -> Optional[Any]:
-    return os.getenv(key, default)
-
-def safe_delete_file(path: str) -> bool:
+def safe_divide(a, b):
     try:
-        if os.path.exists(path):
-            os.remove(path)
-            return True
-        return False
-    except OSError:
-        return False
+        return float(a) / float(b)
+    except (ZeroDivisionError, ValueError, TypeError):
+        return 0.0
+
+def safe_list_access(lst, index):
+    try:
+        return lst[int(index)]
+    except (IndexError, TypeError, ValueError):
+        return None
+
+def safe_json_load(data):
+    try:
+        if isinstance(data, (bytes, bytearray)):
+            data = data.decode('utf-8')
+        return json.loads(data)
+    except (json.JSONDecodeError, TypeError, UnicodeDecodeError):
+        return {}
+
+def safe_file_read(path):
+    try:
+        if not isinstance(path, str):
+            return ''
+        with open(path, 'r', encoding='utf-8') as f:
+            return f.read()
+    except (FileNotFoundError, PermissionError, OSError):
+        return ''
+
+def safe_int(value):
+    try:
+        return int(value)
+    except (ValueError, TypeError):
+        return 0
+
+def process_list(data):
+    if not data:
+        return []
+    try:
+        if isinstance(data, str):
+            items = [safe_int(x.strip()) for x in data.split(',') if x.strip()]
+            return items
+        if isinstance(data, (list, tuple)):
+            return [safe_int(x) for x in data]
+        return [safe_int(data)]
+    except Exception:
+        return []
+
+def run_automation_step(step_func, *args, **kwargs):
+    try:
+        return step_func(*args, **kwargs)
+    except Exception:
+        return None
