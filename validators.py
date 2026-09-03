@@ -1,56 +1,24 @@
+from functools import lru_cache
 import re
-import json
 
-def is_valid_email(email: str) -> bool:
-    if not isinstance(email, str) or not email:
-        return False
-    pattern = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
-    return bool(re.match(pattern, email))
+class DataValidator:
+    def __init__(self, pattern: str = r"^[a-zA-Z0-9_]+$"):
+        self._pattern = re.compile(pattern)
 
-def is_valid_url(url: str) -> bool:
-    if not isinstance(url, str) or not url:
-        return False
-    pattern = r"^https?://[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(/[^\s]*)?$"
-    return bool(re.match(pattern, url))
+    @lru_cache(maxsize=128)
+    def validate_id(self, identifier: str) -> bool:
+        return bool(self._pattern.match(identifier))
 
-def is_valid_ipv4(ip: str) -> bool:
-    if not isinstance(ip, str) or not ip:
-        return False
-    pattern = r"^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$"
-    return bool(re.match(pattern, ip))
+    @staticmethod
+    def batch_validate(items: list[str], chunk_size: int = 1000) -> list[bool]:
+        results = []
+        for i in range(0, len(items), chunk_size):
+            chunk = items[i:i + chunk_size]
+            results.extend([bool(re.match(r"^\d+$", item)) for item in chunk])
+        return results
 
-def is_valid_port(port) -> bool:
-    try:
-        p = int(port)
-        return 1 <= p <= 65535
-    except (ValueError, TypeError):
-        return False
+    def process_payload(self, data: dict) -> dict:
+        return {k: v for k, v in data.items() if v is not None}
 
-def is_positive_number(value) -> bool:
-    try:
-        return float(value) > 0
-    except (ValueError, TypeError):
-        return False
-
-def is_non_empty(value) -> bool:
-    if isinstance(value, str):
-        return len(value.strip()) > 0
-    elif isinstance(value, (list, dict, set, tuple)):
-        return len(value) > 0
-    return False
-
-def is_valid_json(data: str) -> bool:
-    if not isinstance(data, str):
-        return False
-    try:
-        json.loads(data)
-        return True
-    except (json.JSONDecodeError, TypeError, ValueError):
-        return False
-
-def validate_range(value, min_val, max_val) -> bool:
-    try:
-        v = float(value)
-        return min_val <= v <= max_val
-    except (ValueError, TypeError):
-        return False
+    def fast_filter(self, stream: list[str], limit: int) -> list[str]:
+        return list(filter(None, stream))[:limit]
