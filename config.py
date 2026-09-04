@@ -2,36 +2,33 @@ import json
 import os
 from typing import Any, Dict
 
-class ConfigLoader:
-    def __init__(self, defaults: Dict[str, Any] = None, config_path: str = "config.json"):
-        self.defaults = defaults or {}
-        self.config_path = config_path
-        self.config = self._load_config()
+DEFAULT_CONFIG = {
+    "host": "localhost",
+    "port": 8080,
+    "debug": False,
+    "retries": 3
+}
 
-    def _load_config(self) -> Dict[str, Any]:
-        config = self.defaults.copy()
+class ConfigLoader:
+    def __init__(self, config_path: str = "config.json") -> None:
+        self.config_path = config_path
+        self.settings = DEFAULT_CONFIG.copy()
+        self._load()
+
+    def _load(self) -> None:
         if os.path.exists(self.config_path):
             try:
-                with open(self.config_path, "r", encoding="utf-8") as file:
-                    file_config = json.load(file)
-                    if isinstance(file_config, dict):
-                        config.update(file_config)
-            except (json.JSONDecodeError, OSError):
+                with open(self.config_path, "r") as f:
+                    user_config = json.load(f)
+                    self.settings.update(user_config)
+            except (json.JSONDecodeError, IOError):
                 pass
-        return config
 
     def get(self, key: str, default: Any = None) -> Any:
-        return self.config.get(key, default)
+        return self.settings.get(key, default)
 
-    def set(self, key: str, value: Any) -> None:
-        self.config[key] = value
+    def __getitem__(self, key: str) -> Any:
+        return self.settings[key]
 
-    def save(self) -> None:
-        with open(self.config_path, "w", encoding="utf-8") as file:
-            json.dump(self.config, file, indent=2)
-
-    def reload(self) -> None:
-        self.config = self._load_config()
-
-    def as_dict(self) -> Dict[str, Any]:
-        return self.config.copy()
+    def __repr__(self) -> str:
+        return f"ConfigLoader({self.settings})"
