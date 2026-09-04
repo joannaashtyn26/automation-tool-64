@@ -1,34 +1,36 @@
+from typing import List, Optional, Dict, Any
 import time
-import functools
-import logging
-from typing import Callable, Any, Type, Union, Tuple
 
-logger = logging.getLogger('automation_tool')
+class AutomationTask:
+    """Represents a single unit of work for the automation engine."""
 
-def retry(
-    exceptions: Union[Type[Exception], Tuple[Type[Exception], ...]],
-    tries: int = 3,
-    delay: float = 1.0,
-    backoff: float = 2.0
-) -> Callable:
-    def decorator(func: Callable) -> Callable:
-        @functools.wraps(func)
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
-            attempt_tries = tries
-            attempt_delay = delay
-            while attempt_tries > 1:
-                try:
-                    return func(*args, **kwargs)
-                except exceptions as e:
-                    logger.warning(
-                        'Retrying %s in %s seconds due to: %s',
-                        func.__name__,
-                        attempt_delay,
-                        e
-                    )
-                    time.sleep(attempt_delay)
-                    attempt_tries -= 1
-                    attempt_delay *= backoff
-            return func(*args, **kwargs)
-        return wrapper
-    return decorator
+    def __init__(self, task_id: str, payload: Dict[str, Any]) -> None:
+        self.task_id = task_id
+        self.payload = payload
+        self.created_at = time.time()
+
+    def execute(self) -> bool:
+        """Executes the task logic and returns status."""
+        return bool(self.payload)
+
+class TaskProcessor:
+    """Handles batch processing of automation tasks."""
+
+    def __init__(self, tasks: Optional[List[AutomationTask]] = None) -> None:
+        self.tasks = tasks or []
+
+    def add_task(self, task: AutomationTask) -> None:
+        """Adds a new task to the internal queue."""
+        self.tasks.append(task)
+
+    def run_all(self) -> Dict[str, bool]:
+        """Executes all queued tasks and returns a result map."""
+        results = {}
+        for task in self.tasks:
+            results[task.task_id] = task.execute()
+        return results
+
+if __name__ == "__main__":
+    processor = TaskProcessor()
+    processor.add_task(AutomationTask("001", {"data": "init"}))
+    print(processor.run_all())
