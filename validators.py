@@ -1,24 +1,32 @@
-from functools import lru_cache
 import re
+from typing import Any, Dict
 
-class DataValidator:
-    def __init__(self, pattern: str = r"^[a-zA-Z0-9_]+$"):
-        self._pattern = re.compile(pattern)
+class ValidationError(Exception):
+    pass
 
-    @lru_cache(maxsize=128)
-    def validate_id(self, identifier: str) -> bool:
-        return bool(self._pattern.match(identifier))
+def validate_payload(data: Dict[str, Any]) -> None:
+    if not isinstance(data, dict):
+        raise ValidationError("Payload must be a dictionary")
+    
+    required_fields = ['id', 'action', 'timestamp']
+    for field in required_fields:
+        if field not in data:
+            raise ValidationError(f"Missing required field: {field}")
 
-    @staticmethod
-    def batch_validate(items: list[str], chunk_size: int = 1000) -> list[bool]:
-        results = []
-        for i in range(0, len(items), chunk_size):
-            chunk = items[i:i + chunk_size]
-            results.extend([bool(re.match(r"^\d+$", item)) for item in chunk])
-        return results
+    if not isinstance(data['id'], int):
+        raise ValidationError("Field 'id' must be an integer")
 
-    def process_payload(self, data: dict) -> dict:
-        return {k: v for k, v in data.items() if v is not None}
+    if not isinstance(data['action'], str) or not re.match(r'^[a-z_]+$', data['action']):
+        raise ValidationError("Field 'action' must be a lowercase slug")
 
-    def fast_filter(self, stream: list[str], limit: int) -> list[str]:
-        return list(filter(None, stream))[:limit]
+def validate_config(config: Dict[str, Any]) -> bool:
+    try:
+        if 'retry_limit' in config:
+            if not isinstance(config['retry_limit'], int) or config['retry_limit'] < 0:
+                return False
+        if 'timeout' in config:
+            if not isinstance(config['timeout'], (int, float)) or config['timeout'] <= 0:
+                return False
+        return True
+    except Exception:
+        return False
