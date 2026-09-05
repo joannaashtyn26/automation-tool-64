@@ -1,36 +1,33 @@
-from typing import List, Optional, Dict, Any
-import time
+import functools
+from typing import Any, Callable, Dict
 
-class AutomationTask:
-    """Represents a single unit of work for the automation engine."""
+class PerformanceOptimizer:
+    def __init__(self, cache_size: int = 128):
+        self.cache_size = cache_size
+        self._metrics: Dict[str, float] = {}
 
-    def __init__(self, task_id: str, payload: Dict[str, Any]) -> None:
-        self.task_id = task_id
-        self.payload = payload
-        self.created_at = time.time()
+    def memoize(self, func: Callable) -> Callable:
+        return functools.lru_cache(maxsize=self.cache_size)(func)
 
-    def execute(self) -> bool:
-        """Executes the task logic and returns status."""
-        return bool(self.payload)
+    def batch_process(self, data: list, chunk_size: int = 100):
+        for i in range(0, len(data), chunk_size):
+            yield data[i:i + chunk_size]
 
-class TaskProcessor:
-    """Handles batch processing of automation tasks."""
+class ExecutionEngine:
+    def __init__(self):
+        self.optimizer = PerformanceOptimizer()
 
-    def __init__(self, tasks: Optional[List[AutomationTask]] = None) -> None:
-        self.tasks = tasks or []
+    @functools.lru_cache(maxsize=64)
+    def compute_heavy_task(self, n: int) -> int:
+        result = 0
+        for i in range(n):
+            result += i**2
+        return result
 
-    def add_task(self, task: AutomationTask) -> None:
-        """Adds a new task to the internal queue."""
-        self.tasks.append(task)
+    def process_data(self, dataset: list):
+        return [self.compute_heavy_task(x) for x in dataset]
 
-    def run_all(self) -> Dict[str, bool]:
-        """Executes all queued tasks and returns a result map."""
-        results = {}
-        for task in self.tasks:
-            results[task.task_id] = task.execute()
-        return results
-
-if __name__ == "__main__":
-    processor = TaskProcessor()
-    processor.add_task(AutomationTask("001", {"data": "init"}))
-    print(processor.run_all())
+if __name__ == '__main__':
+    engine = ExecutionEngine()
+    data_stream = list(range(1000))
+    results = engine.process_data(data_stream[:10])
