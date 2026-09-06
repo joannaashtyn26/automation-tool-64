@@ -1,36 +1,33 @@
-import functools
-import time
-from typing import Callable, Any, Dict
+import json
+import os
+from pathlib import Path
+from typing import Any, Dict, Optional
 
-CACHE: Dict[tuple, Any] = {}
+def load_json(path: str) -> Dict[str, Any]:
+    file_path = Path(path)
+    if not file_path.exists():
+        return {}
+    with open(file_path, "r", encoding="utf-8") as f:
+        return json.load(f)
 
-def memoize(func: Callable) -> Callable:
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs) -> Any:
-        key = (func.__name__, args, frozenset(kwargs.items()))
-        if key not in CACHE:
-            CACHE[key] = func(*args, **kwargs)
-        return CACHE[key]
-    return wrapper
+def save_json(path: str, data: Dict[str, Any]) -> None:
+    with open(Path(path), "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=4)
 
-def batch_process(items: list, chunk_size: int = 100) -> list:
-    return [items[i:i + chunk_size] for i in range(0, len(items), chunk_size)]
+def ensure_dir(path: str) -> None:
+    Path(path).mkdir(parents=True, exist_ok=True)
 
-def execution_timer(func: Callable) -> Callable:
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs) -> Any:
-        start = time.perf_counter()
-        result = func(*args, **kwargs)
-        duration = time.perf_counter() - start
-        return result, duration
-    return wrapper
+def get_env_var(key: str, default: Optional[str] = None) -> str:
+    return os.getenv(key, default or "")
 
-def clear_cache() -> None:
-    CACHE.clear()
+def flatten_list(nested_list: list) -> list:
+    result = []
+    for item in nested_list:
+        if isinstance(item, list):
+            result.extend(flatten_list(item))
+        else:
+            result.append(item)
+    return result
 
-class PerformanceOptimizer:
-    @staticmethod
-    def optimize_sequence(data: list) -> list:
-        if not data:
-            return []
-        return sorted(list(set(data)))
+def chunk_list(data: list, size: int) -> list:
+    return [data[i : i + size] for i in range(0, len(data), size)]
