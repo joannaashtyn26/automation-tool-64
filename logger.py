@@ -1,27 +1,55 @@
 import logging
+import sys
+from pathlib import Path
+from typing import Optional
 
-class Logger:
-    def __init__(self, name):
-        self.logger = logging.getLogger(name)
-        self.logger.setLevel(logging.DEBUG)
-        handler = logging.StreamHandler()
-        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-        handler.setFormatter(formatter)
-        self.logger.addHandler(handler)
 
-    def debug(self, message):
-        self.logger.debug(message)
+def get_logger(
+    name: str = "automation",
+    log_file: Optional[Path] = None,
+    level: int = logging.INFO,
+) -> logging.Logger:
+    """Configures and returns a structured logger instance.
 
-    def info(self, message):
-        self.logger.info(message)
+    Args:
+        name: Name of the logger instance.
+        log_file: Optional path to a file where logs should be written.
+        level: Logging level threshold.
 
-    def warning(self, message):
-        self.logger.warning(message)
+    Returns:
+        Configured Logger instance with formatted output.
+    """
+    logger = logging.getLogger(name)
+    logger.setLevel(level)
 
-    def error(self, message):
-        self.logger.error(message)
+    if logger.handlers:
+        return logger
 
-    def critical(self, message):
-        self.logger.critical(message)
+    formatter = logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    )
 
-logger = Logger(__name__)
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setFormatter(formatter)
+    logger.addHandler(console_handler)
+
+    if log_file:
+        log_file.parent.mkdir(parents=True, exist_ok=True)
+        file_handler = logging.FileHandler(log_file, encoding="utf-8")
+        file_handler.setFormatter(formatter)
+        logger.addHandler(file_handler)
+
+    return logger
+
+
+def set_log_level(logger: logging.Logger, level_name: str) -> None:
+    """Updates the logging level for an existing logger.
+
+    Args:
+        logger: Target logger instance to update.
+        level_name: String representation of desired level (e.g., 'DEBUG').
+    """
+    numeric_level = getattr(logging, level_name.upper(), logging.INFO)
+    logger.setLevel(numeric_level)
+    for handler in logger.handlers:
+        handler.setLevel(numeric_level)
