@@ -1,49 +1,33 @@
 import logging
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict
 
-logger = logging.getLogger("automation_tool.handler")
+logger = logging.getLogger(__name__)
 
-class TaskHandler:
-    def __init__(self, raw_tasks: List[Dict[str, Any]]):
-        self.raw_tasks = raw_tasks
-        self.processed_count = 0
-        self.failed_count = 0
+class AutomationHandler:
+    def __init__(self, config: Dict[str, Any]):
+        self.config = config
+        self.is_active = True
 
-    def validate_task(self, task: Dict[str, Any]) -> Tuple[bool, str]:
-        if not isinstance(task, dict):
-            return False, "task must be a dictionary"
-        
-        task_id = task.get("id")
-        if task_id is None or not isinstance(task_id, (int, str)):
-            return False, "missing or invalid task id"
-        
-        action = task.get("action")
-        if not action or not isinstance(action, str):
-            return False, f"task {task_id}: missing or invalid action"
-        
-        allowed_actions = {"status_check", "data_sync", "report_generation"}
-        if action not in allowed_actions:
-            return False, f"task {task_id}: unsupported action '{action}'"
-        
-        return True, ""
+    def process_request(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        if not self.is_active:
+            return {"status": "inactive"}
 
-    def process_tasks(self) -> Dict[str, Any]:
-        results = []
-        for index, raw_task in enumerate(self.raw_tasks):
-            is_valid, error_msg = self.validate_task(raw_task)
-            if not is_valid:
-                logger.warning(f"Validation failed at index {index}: {error_msg}")
-                self.failed_count += 1
-                continue
+        try:
+            validated_data = self._validate(data)
+            result = self._execute(validated_data)
+            return {"status": "success", "data": result}
+        except Exception as e:
+            logger.error(f"processing failure: {e}")
+            return {"status": "error", "message": str(e)}
 
-            task_id = raw_task["id"]
-            action = raw_task["action"]
-            
-            results.append({"id": task_id, "status": "success", "action": action})
-            self.processed_count += 1
+    def _validate(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        if not data:
+            raise ValueError("empty payload")
+        return data
 
-        return {
-            "processed": self.processed_count,
-            "failed": self.failed_count,
-            "results": results,
-        }
+    def _execute(self, data: Dict[str, Any]) -> Any:
+        return {"processed": True, "input_size": len(data)}
+
+    def shutdown(self) -> None:
+        self.is_active = False
+        logger.info("handler shutdown complete")
