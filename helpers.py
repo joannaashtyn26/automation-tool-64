@@ -1,33 +1,33 @@
-import json
 import os
+import json
+import shutil
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
-def load_json(path: str) -> Dict[str, Any]:
-    file_path = Path(path)
-    if not file_path.exists():
-        return {}
-    with open(file_path, "r", encoding="utf-8") as f:
-        return json.load(f)
-
-def save_json(path: str, data: Dict[str, Any]) -> None:
-    with open(Path(path), "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=4)
-
-def ensure_dir(path: str) -> None:
+def ensure_directory(path: str) -> None:
     Path(path).mkdir(parents=True, exist_ok=True)
 
-def get_env_var(key: str, default: Optional[str] = None) -> str:
-    return os.getenv(key, default or "")
+def read_json(file_path: str) -> Dict[str, Any]:
+    with open(file_path, 'r', encoding='utf-8') as f:
+        return json.load(f)
 
-def flatten_list(nested_list: list) -> list:
-    result = []
-    for item in nested_list:
-        if isinstance(item, list):
-            result.extend(flatten_list(item))
-        else:
-            result.append(item)
-    return result
+def write_json(data: Dict[str, Any], file_path: str) -> None:
+    with open(file_path, 'w', encoding='utf-8') as f:
+        json.dump(data, f, indent=4)
 
-def chunk_list(data: list, size: int) -> list:
-    return [data[i : i + size] for i in range(0, len(data), size)]
+def safe_remove(path: str) -> None:
+    path_obj = Path(path)
+    if path_obj.is_file() or path_obj.is_symlink():
+        path_obj.unlink()
+    elif path_obj.is_dir():
+        shutil.rmtree(path_obj)
+
+def get_env_variable(key: str, default: str = None) -> str:
+    return os.environ.get(key, default)
+
+def format_byte_size(size: int) -> str:
+    for unit in ['B', 'KB', 'MB', 'GB']:
+        if size < 1024:
+            return f"{size:.2f} {unit}"
+        size /= 1024
+    return f"{size:.2f} TB"
