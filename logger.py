@@ -1,27 +1,36 @@
 import logging
 from logging.handlers import RotatingFileHandler
-from pathlib import Path
+import sys
 
-def get_logger(name: str, log_file: str = "app.log") -> logging.Logger:
-    path = Path(log_file)
-    path.parent.mkdir(parents=True, exist_ok=True)
 
+def setup_logger(
+    name: str = "automation_tool",
+    log_file: str = "automation.log",
+    max_bytes: int = 5 * 1024 * 1024,
+    backup_count: int = 3,
+    level: int = logging.INFO,
+) -> logging.Logger:
     logger = logging.getLogger(name)
-    logger.setLevel(logging.INFO)
+    logger.setLevel(level)
 
-    if not logger.handlers:
-        formatter = logging.Formatter(
-            "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-        )
+    if logger.hasHandlers():
+        return logger
 
+    formatter = logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    )
+
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setFormatter(formatter)
+    logger.addHandler(console_handler)
+
+    try:
         file_handler = RotatingFileHandler(
-            log_file, maxBytes=1048576, backupCount=5
+            log_file, maxBytes=max_bytes, backupCount=backup_count
         )
         file_handler.setFormatter(formatter)
         logger.addHandler(file_handler)
-
-        console_handler = logging.StreamHandler()
-        console_handler.setFormatter(formatter)
-        logger.addHandler(console_handler)
+    except IOError as e:
+        logger.warning(f"Failed to initialize file logging: {e}")
 
     return logger
