@@ -1,30 +1,36 @@
-import json
-from pathlib import Path
+import os
+import logging
 from typing import Any, Dict
 
-class ConfigLoader:
-    def __init__(self, filepath: str, defaults: Dict[str, Any] = None):
-        self.filepath = Path(filepath)
-        self.defaults = defaults or {}
-        self.config = self._load()
+logger = logging.getLogger(__name__)
 
-    def _load(self) -> Dict[str, Any]:
-        if not self.filepath.exists():
-            return self.defaults
-        try:
-            with open(self.filepath, 'r') as f:
-                data = json.load(f)
-                return {**self.defaults, **data}
-        except (json.JSONDecodeError, IOError):
-            return self.defaults
+def load_config(path: str) -> Dict[str, Any]:
+    if not path:
+        logger.error("configuration path missing")
+        raise ValueError("path cannot be empty")
 
-    def get(self, key: str, default: Any = None) -> Any:
-        return self.config.get(key, default)
+    if not os.path.exists(path):
+        logger.error(f"config file not found at {path}")
+        return {}
 
-    def save(self) -> None:
-        with open(self.filepath, 'w') as f:
-            json.dump(self.config, f, indent=4)
+    try:
+        with open(path, 'r') as f:
+            data = f.read()
+            if not data.strip():
+                logger.warning(f"config file {path} is empty")
+                return {}
+            return dict(line.split('=') for line in data.splitlines() if '=' in line)
+    except (IOError, PermissionError) as e:
+        logger.critical(f"failed to access config file: {e}")
+        return {}
+    except ValueError as e:
+        logger.error(f"malformed configuration format: {e}")
+        return {}
 
-    def update(self, **kwargs) -> None:
-        self.config.update(kwargs)
-        self.save()
+class ConfigError(Exception):
+    pass
+
+def validate_config(config: Dict[str, Any], required_keys: list) -> None:
+    missing = [key for key in required_keys if key not in config]
+    if missing:
+        raise ConfigError(f"missing required configuration keys: {', '.join(missing)}")
