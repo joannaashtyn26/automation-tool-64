@@ -1,39 +1,47 @@
-import concurrent.futures
-from typing import Callable, Iterable, List, TypeVar, Generator
+import logging
+from typing import Any, Dict, List, Tuple
 
-T = TypeVar('T')
-
-R = TypeVar('R')
+logger = logging.getLogger(__name__)
 
 
-class BatchProcessor:
-    def __init__(self, max_workers: int = 4, chunk_size: int = 100):
-        self.max_workers = max_workers
-        self.chunk_size = chunk_size
+class ValidationError(Exception):
+    pass
 
-    def _chunk_iterable(self, iterable: Iterable[T]) -> Generator[List[T], None, None]:
-        chunk = []
-        for item in iterable:
-            chunk.append(item)
-            if len(chunk) == self.chunk_size:
-                yield chunk
-                chunk = []
-        if chunk:
-            yield chunk
 
-    def process(self, func: Callable[[T], R], items: Iterable[T]) -> List[R]:
-        results = []
-        chunks = list(self._chunk_iterable(items))
+class DataProcessor:
+    def __init__(self, required_fields: Dict[str, type]):
+        self.required_fields = required_fields
+
+    def validate(self, data: Any) -> Dict[str, Any]:
+        if not isinstance(data, dict):
+            raise ValidationError("input data must be a dictionary")
         
-        with concurrent.futures.ThreadPoolExecutor(max_workers=self.max_workers) as executor:
-            futures = [
-                executor.submit(self._process_chunk, func, chunk)
-                for chunk in chunks
-            ]
-            for future in concurrent.futures.as_completed(futures):
-                results.extend(future.result())
-        return results
+        validated = {}
+        for field, expected_type in self.required_fields.items():
+            if field not in data:
+                raise ValidationError(f"missing required field: {field}")
+            
+            val = data[field]
+            if not isinstance(val, expected_type):
+                try:
+                    val = expected_type(val)
+                except (ValueError, TypeError) as exc:
+                    raise ValidationError(
+                        f"field '{field}' could not be converted to {expected_type.__name__}"
+                    ) from exc
+            validated[field] = val
+        return validated
 
-    @staticmethod
-    def _process_chunk(func: Callable[[T], R], chunk: List[T]) -> List[R]:
-        return [func(item) for item in chunk]
+    def process_batch(self, batch: List[Any]) -> Tuple[List[Dict[str, Any]], List[str]]:
+        processed_items = []
+        errors = []
+        for index, item in enumerate(batch):
+            try:
+                valid_data = self.validate(item)
+                valid_data["status"] = "verified"
+                processed_items.append(valid_data)
+            except ValidationError as err:
+                error_msg = f"item {index} validation error: {err}"
+                logger.warning(error_msg)
+                errors.append(error_msg)
+        return processed_items, errors
