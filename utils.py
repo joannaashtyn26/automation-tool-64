@@ -1,41 +1,34 @@
-from typing import Any, Dict, List, Union
+import os
+import shutil
+from pathlib import Path
+from typing import Union
 
+def clean_directory(path: Union[str, Path], pattern: str = '*') -> None:
+    target = Path(path)
+    if not target.is_dir():
+        raise ValueError(f'directory not found: {path}')
+    for item in target.glob(pattern):
+        if item.is_file():
+            item.unlink()
+        elif item.is_dir():
+            shutil.rmtree(item)
 
-def flatten_dict(
-    d: Dict[str, Any], parent_key: str = "", sep: str = "."
-) -> Dict[str, Any]:
-    """Flattens a nested dictionary."""
-    items: List[tuple[str, Any]] = []
-    for k, v in d.items():
-        new_key = f"{parent_key}{sep}{k}" if parent_key else k
-        if isinstance(v, dict):
-            items.extend(flatten_dict(v, new_key, sep=sep).items())
-        else:
-            items.append((new_key, v))
-    return dict(items)
+def organize_files(source: str, destination: str, extension: str) -> None:
+    src_path = Path(source)
+    dst_path = Path(destination)
+    dst_path.mkdir(parents=True, exist_ok=True)
+    for file in src_path.glob(f'*.{extension}'):
+        shutil.move(str(file), str(dst_path / file.name))
 
+def get_directory_size(path: str) -> int:
+    return sum(f.stat().st_size for f in Path(path).rglob('*') if f.is_file())
 
-def get_by_path(
-    d: Dict[str, Any], path: Union[str, List[str]], default: Any = None
-) -> Any:
-    """Retrieves a value from a nested dictionary using a dot-separated path."""
-    if isinstance(path, str):
-        path = path.split(".")
+def validate_paths(paths: list[str]) -> bool:
+    return all(Path(p).exists() for p in paths)
 
-    current = d
-    for key in path:
-        if isinstance(current, dict) and key in current:
-            current = current[key]
-        else:
-            return default
-    return current
-
-
-def safe_cast(value: Any, to_type: type, default: Any = None) -> Any:
-    """Safely casts a value to a given type, returning default on failure."""
-    try:
-        if to_type is bool and isinstance(value, str):
-            return value.lower() in ("true", "1", "t", "y", "yes")
-        return to_type(value)
-    except (ValueError, TypeError):
-        return default
+def format_byte_size(size: int) -> str:
+    for unit in ['B', 'KB', 'MB', 'GB']:
+        if size < 1024:
+            return f'{size:.2f} {unit}'
+        size /= 1024
+    return f'{size:.2f} TB'
