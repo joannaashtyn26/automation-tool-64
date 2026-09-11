@@ -1,44 +1,46 @@
-import re
+import functools
+import time
+from typing import Callable, Any, Dict
 
+def memoize(func: Callable) -> Callable:
+    cache: Dict[tuple, Any] = {}
 
-def validate_input_data(data: dict) -> bool:
-    """
-    Validates core input structure and data types.
-    """
-    required_keys = {'task_id', 'payload', 'priority'}
-    if not all(key in data for key in required_keys):
-        return False
+    @functools.wraps(func)
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
+        key = (args, tuple(sorted(kwargs.items())))
+        if key not in cache:
+            cache[key] = func(*args, **kwargs)
+        return cache[key]
+    return wrapper
 
-    if not isinstance(data['task_id'], int) or data['task_id'] < 0:
-        return False
+def throttle(interval: float) -> Callable:
+    def decorator(func: Callable) -> Callable:
+        last_called: Dict[str, float] = {'time': 0.0}
 
-    if not isinstance(data['payload'], str) or not data['payload'].strip():
-        return False
+        @functools.wraps(func)
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            current_time = time.monotonic()
+            elapsed = current_time - last_called['time']
+            if elapsed < interval:
+                time.sleep(interval - elapsed)
+            result = func(*args, **kwargs)
+            last_called['time'] = time.monotonic()
+            return result
+        return wrapper
+    return decorator
 
-    if not isinstance(data['priority'], int) or not (1 <= data['priority'] <= 5):
-        return False
+class BatchProcessor:
+    def __init__(self, size: int = 100):
+        self.size = size
+        self.buffer = []
 
-    return True
+    def add(self, item: Any) -> list:
+        self.buffer.append(item)
+        if len(self.buffer) >= self.size:
+            return self.flush()
+        return []
 
-
-def sanitize_payload(payload: str) -> str:
-    """
-    Strips control characters and limits payload length.
-    """
-    cleaned = re.sub(r'[\x00-\x1f\x7f]', '', payload)
-    return cleaned[:1024].strip()
-
-
-def process_input_stream(data_list: list):
-    """
-    Main processing loop with integrated validation logic.
-    """
-    processed = []
-    for entry in data_list:
-        if not validate_input_data(entry):
-            continue
-
-        entry['payload'] = sanitize_payload(entry['payload'])
-        processed.append(entry)
-
-    return processed
+    def flush(self) -> list:
+        data = self.buffer
+        self.buffer = []
+        return data
