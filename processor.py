@@ -1,25 +1,38 @@
-import sys
+import json
+import os
+from typing import Any, Dict, Optional
 
-def validate_input(data):
-    if not isinstance(data, dict):
+def load_json(path: str) -> Optional[Dict[str, Any]]:
+    if not os.path.exists(path):
+        return None
+    try:
+        with open(path, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except (json.JSONDecodeError, IOError):
+        return None
+
+def save_json(data: Dict[str, Any], path: str) -> bool:
+    try:
+        with open(path, 'w', encoding='utf-8') as f:
+            json.dump(data, f, indent=4)
+        return True
+    except IOError:
         return False
-    if 'id' not in data or not isinstance(data['id'], int):
-        return False
-    return True
 
-def run_process(data_stream):
-    for entry in data_stream:
-        if not validate_input(entry):
-            print(f"invalid input encountered: {entry}", file=sys.stderr)
-            continue
-        try:
-            execute_task(entry)
-        except Exception as e:
-            print(f"processing error: {e}", file=sys.stderr)
+def ensure_directory(path: str) -> None:
+    if not os.path.exists(path):
+        os.makedirs(path, exist_ok=True)
 
-def execute_task(data):
-    print(f"processing item {data['id']}")
+def flatten_dict(d: Dict[str, Any], parent_key: str = '', sep: str = '_') -> Dict[str, Any]:
+    items = []
+    for k, v in d.items():
+        new_key = f"{parent_key}{sep}{k}" if parent_key else k
+        if isinstance(v, dict):
+            items.extend(flatten_dict(v, new_key, sep=sep).items())
+        else:
+            items.append((new_key, v))
+    return dict(items)
 
-if __name__ == '__main__':
-    mock_data = [{'id': 1}, {'id': 'invalid'}, {'id': 2}]
-    run_process(mock_data)
+def chunk_list(data: list, size: int):
+    for i in range(0, len(data), size):
+        yield data[i:i + size]
