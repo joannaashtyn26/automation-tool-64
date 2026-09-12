@@ -1,46 +1,30 @@
-import functools
-import time
-from typing import Callable, Any, Dict
+import json
+import os
+from typing import Any, Optional
 
-def memoize(func: Callable) -> Callable:
-    cache: Dict[tuple, Any] = {}
+def load_json(filepath: str) -> dict:
+    if not os.path.exists(filepath):
+        return {}
+    with open(filepath, 'r', encoding='utf-8') as f:
+        return json.load(f)
 
-    @functools.wraps(func)
-    def wrapper(*args: Any, **kwargs: Any) -> Any:
-        key = (args, tuple(sorted(kwargs.items())))
-        if key not in cache:
-            cache[key] = func(*args, **kwargs)
-        return cache[key]
-    return wrapper
+def save_json(filepath: str, data: dict) -> None:
+    with open(filepath, 'w', encoding='utf-8') as f:
+        json.dump(data, f, indent=4)
 
-def throttle(interval: float) -> Callable:
-    def decorator(func: Callable) -> Callable:
-        last_called: Dict[str, float] = {'time': 0.0}
+def ensure_dir(path: str) -> None:
+    if not os.path.exists(path):
+        os.makedirs(path)
 
-        @functools.wraps(func)
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
-            current_time = time.monotonic()
-            elapsed = current_time - last_called['time']
-            if elapsed < interval:
-                time.sleep(interval - elapsed)
-            result = func(*args, **kwargs)
-            last_called['time'] = time.monotonic()
-            return result
-        return wrapper
-    return decorator
+def get_env_variable(key: str, default: Optional[Any] = None) -> Any:
+    return os.environ.get(key, default)
 
-class BatchProcessor:
-    def __init__(self, size: int = 100):
-        self.size = size
-        self.buffer = []
+def format_byte_size(size_bytes: int) -> str:
+    for unit in ['B', 'KB', 'MB', 'GB']:
+        if size_bytes < 1024:
+            return f'{size_bytes:.2f} {unit}'
+        size_bytes /= 1024
+    return f'{size_bytes:.2f} TB'
 
-    def add(self, item: Any) -> list:
-        self.buffer.append(item)
-        if len(self.buffer) >= self.size:
-            return self.flush()
-        return []
-
-    def flush(self) -> list:
-        data = self.buffer
-        self.buffer = []
-        return data
+def sanitize_filename(name: str) -> str:
+    return ''.join(c for c in name if c.isalnum() or c in (' ', '.', '_')).strip()
