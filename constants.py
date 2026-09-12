@@ -1,62 +1,51 @@
-"""Constants for the automation-tool-64 application.
+"""Application constants and default configuration settings."""
 
-This module provides all necessary constant values used throughout the tool.
-All constants are typed using Final from typing for immutability indication.
-"""
+from enum import Enum
+from pathlib import Path
+from typing import Final
 
-from __future__ import annotations
 
-from typing import Any, Dict, Final, List
+class Environment(str, Enum):
+    """Execution environment modes."""
 
-class AutomationConstants:
-    """Holds all constant values for the automation tool.
+    DEVELOPMENT = "development"
+    STAGING = "staging"
+    PRODUCTION = "production"
 
-    Provides a centralized place for configuration constants.
-    """
 
-    DEFAULT_TIMEOUT: Final[int] = 30
-    MAX_RETRIES: Final[int] = 5
-    RETRY_BACKOFF: Final[float] = 2.0
-    LOG_LEVEL: Final[str] = "INFO"
-    BASE_URL: Final[str] = "https://api.automation-tool-64.example"
-    USER_AGENT: Final[str] = "AutomationTool64/0.1"
-    MAX_PARALLEL_TASKS: Final[int] = 10
-    BUFFER_SIZE: Final[int] = 8192
-    ENABLE_DEBUG: Final[bool] = False
-    SESSION_TIMEOUT: Final[int] = 300
-    MAX_FILE_SIZE: Final[int] = 10485760
-    ALLOWED_PROTOCOLS: Final[List[str]] = ["http", "https"]
-    DEFAULT_ENCODING: Final[str] = "utf-8"
-    ERROR_THRESHOLD: Final[int] = 3
-    CACHE_SIZE: Final[int] = 1000
-    QUEUE_MAX_SIZE: Final[int] = 500
-    HEARTBEAT_INTERVAL: Final[int] = 60
-    CONNECTION_POOL_SIZE: Final[int] = 20
+class TaskStatus(str, Enum):
+    """Task execution status codes."""
 
-def get_all_constants() -> Dict[str, Any]:
-    """Retrieve all defined constants as a dictionary.
+    PENDING = "pending"
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
 
-    Returns:
-        A dictionary containing all constant names and their values.
-    """
-    constants: Dict[str, Any] = {}
-    for attr in dir(AutomationConstants):
-        if not attr.startswith("_") and attr.isupper():
-            constants[attr] = getattr(AutomationConstants, attr)
-    return constants
 
-def get_constant(name: str) -> Any:
-    """Get a specific constant by its name.
+DEFAULT_TIMEOUT: Final[int] = 30
+MAX_RETRIES: Final[int] = 3
+BACKOFF_FACTOR: Final[float] = 1.5
+
+BASE_DIR: Final[Path] = Path(__file__).resolve().parent
+DEFAULT_CONFIG_PATH: Final[Path] = BASE_DIR / "config.json"
+DEFAULT_LOG_PATH: Final[Path] = BASE_DIR / "app.log"
+
+
+def get_environment_defaults(env: Environment) -> dict[str, int | float]:
+    """Retrieve environment-specific default timeout and retry settings.
 
     Args:
-        name: The uppercase name of the constant to retrieve.
+        env: Target execution environment.
 
     Returns:
-        The value of the constant if found.
-
-    Raises:
-        KeyError: If the constant name does not exist.
+        Dictionary containing timeout, max_retries, and backoff_factor.
     """
-    if hasattr(AutomationConstants, name) and name.isupper():
-        return getattr(AutomationConstants, name)
-    raise KeyError(f"Constant {name} not found")
+    if env == Environment.DEVELOPMENT:
+        return {"timeout": 10, "max_retries": 1, "backoff_factor": 1.0}
+    if env == Environment.STAGING:
+        return {"timeout": 20, "max_retries": 2, "backoff_factor": 1.2}
+    return {
+        "timeout": DEFAULT_TIMEOUT,
+        "max_retries": MAX_RETRIES,
+        "backoff_factor": BACKOFF_FACTOR,
+    }
