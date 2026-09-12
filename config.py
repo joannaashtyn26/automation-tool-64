@@ -1,36 +1,28 @@
+import json
 import os
-import logging
 from typing import Any, Dict
 
-logger = logging.getLogger(__name__)
+class ConfigLoader:
+    def __init__(self, defaults: Dict[str, Any] = None):
+        self.defaults = defaults or {}
+        self.config = self.defaults.copy()
 
-def load_config(path: str) -> Dict[str, Any]:
-    if not path:
-        logger.error("configuration path missing")
-        raise ValueError("path cannot be empty")
+    def load(self, path: str) -> None:
+        if os.path.exists(path):
+            with open(path, 'r') as f:
+                data = json.load(f)
+                self.config.update(data)
 
-    if not os.path.exists(path):
-        logger.error(f"config file not found at {path}")
-        return {}
+    def get(self, key: str, default: Any = None) -> Any:
+        return self.config.get(key, default)
 
-    try:
-        with open(path, 'r') as f:
-            data = f.read()
-            if not data.strip():
-                logger.warning(f"config file {path} is empty")
-                return {}
-            return dict(line.split('=') for line in data.splitlines() if '=' in line)
-    except (IOError, PermissionError) as e:
-        logger.critical(f"failed to access config file: {e}")
-        return {}
-    except ValueError as e:
-        logger.error(f"malformed configuration format: {e}")
-        return {}
+    def __getitem__(self, key: str) -> Any:
+        return self.config[key]
 
-class ConfigError(Exception):
-    pass
+    def update(self, new_data: Dict[str, Any]) -> None:
+        self.config.update(new_data)
 
-def validate_config(config: Dict[str, Any], required_keys: list) -> None:
-    missing = [key for key in required_keys if key not in config]
-    if missing:
-        raise ConfigError(f"missing required configuration keys: {', '.join(missing)}")
+def get_config(path: str, defaults: Dict[str, Any] = None) -> ConfigLoader:
+    loader = ConfigLoader(defaults)
+    loader.load(path)
+    return loader
